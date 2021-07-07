@@ -1,4 +1,6 @@
-package org.acme.resteasyjackson;
+package org.acme;
+
+import org.acme.resteasyjackson.MessageService;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
