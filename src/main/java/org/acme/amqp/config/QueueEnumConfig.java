@@ -1,11 +1,19 @@
-package org.acme.rabbitmq;
+package org.acme.amqp.config;
 
 import com.rabbitmq.client.BuiltinExchangeType;
+
+import java.util.Map;
+
+import static org.acme.amqp.config.AmqpUtil.X_DLQ;
+import static org.acme.amqp.config.AmqpUtil.X_DLQ_K;
+import static org.acme.amqp.config.AmqpUtil.X_DLQ_ROUTER;
+import static org.acme.amqp.config.AmqpUtil.X_TTL;
 
 
 public enum QueueEnumConfig {
 
-    SAMPLE("sample", BuiltinExchangeType.TOPIC, false, false, false, true, true, 10000, 3);
+    SAMPLE("sample", BuiltinExchangeType.TOPIC, true, false, false, true, true, 10000, 3),
+    THOR("thor", BuiltinExchangeType.TOPIC, true, false, false, true, true, 10000, 3);
 
     private String exchange;
     private BuiltinExchangeType builtinExchange;
@@ -63,5 +71,26 @@ public enum QueueEnumConfig {
 
     public boolean isDureble() {
         return durable;
+    }
+
+    public String getNameQueue(){
+        return exchange+".queue";
+    }
+
+    public String getNameRetry(){
+        return exchange+".retry";
+    }
+
+    public String getNameDlq(){
+        return exchange+".dlq";
+    }
+
+    public Map<String, Object> getArgs(final boolean isDql){
+        if(isDql){
+            return null;
+        }
+        return Map.of(X_DLQ, exchange,
+                X_DLQ_ROUTER, X_DLQ_K,
+                X_TTL, ttl);
     }
 }

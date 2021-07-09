@@ -1,6 +1,7 @@
 package org.acme;
 
-import org.acme.resteasyjackson.MessageService;
+import org.acme.amqp.config.AmqpTemplate;
+import org.acme.amqp.config.QueueEnumConfig;
 
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
@@ -16,11 +17,19 @@ import javax.ws.rs.core.Response;
 public class MovieResource {
 
     @Inject
-    MessageService producer;
+    AmqpTemplate producer;
 
     @POST
     public Response send(String movie) {
-        producer.send(movie);
+        producer.send(movie, QueueEnumConfig.SAMPLE);
+        // Return an 202 - Accepted response.
+        return Response.accepted().build();
+    }
+
+    @POST
+    @Path("t")
+    public Response send2(String movie) {
+        producer.send(movie, QueueEnumConfig.THOR);
         // Return an 202 - Accepted response.
         return Response.accepted().build();
     }
