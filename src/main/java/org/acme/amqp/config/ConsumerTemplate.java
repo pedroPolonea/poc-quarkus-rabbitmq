@@ -2,8 +2,9 @@ package org.acme.amqp.config;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.DefaultConsumer;
+import com.rabbitmq.client.Consumer;
 import com.rabbitmq.client.Envelope;
+import com.rabbitmq.client.ShutdownSignalException;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
 
@@ -15,28 +16,28 @@ import static org.acme.amqp.config.AmqpUtil.X_COUNT;
 import static org.acme.amqp.config.AmqpUtil.X_DLQ_K;
 import static org.acme.amqp.config.AmqpUtil.X_RETRY;
 
-public class ConsumerTemplate extends DefaultConsumer {
-    private static final Logger log = LoggerFactory.getLogger(ConsumerTemplate.class);
+public interface ConsumerTemplate extends Consumer {
+    static final Logger log = LoggerFactory.getLogger(ConsumerTemplate.class);
 
-    private QueueEnumConfig queueEnumConfig;
+    QueueEnumConfig getQueue();
 
-    public ConsumerTemplate(Channel channel) {
-        super(channel);
-    }
+    void processMessage(final byte[] body) throws Exception;
 
-    public void processMessage(final byte[] body){}
+    Channel getChannel();
+
+    void setChannel(final Channel channel);
 
     @Override
-    public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+    default void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
         if (!envelope.getRoutingKey().equalsIgnoreCase(X_DLQ_K)){
             try {
                 log.info("Received: " + new String(body, StandardCharsets.UTF_8));
                 processMessage(body);
             } catch (Exception e){
                 if (isDeath(properties.getHeaders())) {
-                    this.getChannel().basicPublish(envelope.getExchange(), envelope.getRoutingKey(), incrementCount(properties), body);
+                    getChannel().basicPublish(envelope.getExchange(), envelope.getRoutingKey(), incrementCount(properties), body);
                 } else {
-                    this.getChannel().basicPublish(envelope.getExchange(), X_DLQ_K, properties, body);
+                    getChannel().basicPublish(envelope.getExchange(), X_DLQ_K, properties, body);
                 }
             }
         }
@@ -56,11 +57,28 @@ public class ConsumerTemplate extends DefaultConsumer {
         return properties;
     }
 
-    public QueueEnumConfig getQueueEnumConfig() {
-        return queueEnumConfig;
+    @Override
+    default void handleConsumeOk(String consumerTag) {
+
     }
 
-    public void setQueueEnumConfig(QueueEnumConfig queueEnumConfig) {
-        this.queueEnumConfig = queueEnumConfig;
+    @Override
+    default void handleCancelOk(String consumerTag) {
+
+    }
+
+    @Override
+    default void handleCancel(String consumerTag) throws IOException {
+
+    }
+
+    @Override
+    default void handleShutdownSignal(String consumerTag, ShutdownSignalException sig) {
+
+    }
+
+    @Override
+    default void handleRecoverOk(String consumerTag) {
+
     }
 }

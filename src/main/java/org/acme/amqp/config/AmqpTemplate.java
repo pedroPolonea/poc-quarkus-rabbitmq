@@ -7,21 +7,21 @@ import io.quarkiverse.rabbitmqclient.RabbitMQClient;
 import io.quarkus.runtime.StartupEvent;
 import io.vertx.core.logging.Logger;
 import io.vertx.core.logging.LoggerFactory;
-import org.acme.amqp.consumer.SampleConsumer;
-import org.acme.amqp.consumer.ThorConsumer;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
+import javax.enterprise.inject.Instance;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Stream;
 
+import static org.acme.amqp.config.AmqpUtil.X_COUNT;
 import static org.acme.amqp.config.AmqpUtil.X_DLQ_K;
 import static org.acme.amqp.config.AmqpUtil.X_QUEUE_ROUTER;
+import static org.acme.amqp.config.AmqpUtil.X_RETRY;
 
 @ApplicationScoped
 public class AmqpTemplate {
@@ -33,16 +33,21 @@ public class AmqpTemplate {
 
     private Channel channel;
 
+    @Inject
+    private Instance<ConsumerTemplate> consumers;
+
     public void onApplicationStart(@Observes StartupEvent event) throws IOException {
         // on application start prepare the queus and message listener
         setupQueues();
-        //setupReceiving();
+        setupReceiving();
     }
 
     private void setupReceiving() throws IOException {
-        Arrays.asList(new SampleConsumer(channel), new ThorConsumer(channel)).forEach(consumer -> {
+        consumers.forEach(consumerTemplate -> {
+            consumerTemplate.setChannel(channel);
+
             try {
-                channel.basicConsume(consumer.getQueueEnumConfig().getNameQueue(), true, consumer);
+                channel.basicConsume(consumerTemplate.getQueue().getNameQueue(), true, consumerTemplate);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -69,12 +74,12 @@ public class AmqpTemplate {
                 channel.exchangeDeclare(queue.getExchange(), queue.getBuiltinExchange(), queue.isDureble());
 
                 // Queue
-                channel.queueDeclare(queue.getNameQueue(), queue.isDureble(), queue.isExclusive(), queue.isAuteDelete(), queue.getArgs(false));
+                channel.queueDeclare(queue.getNameQueue(), queue.isDureble(), queue.isExclusive(), queue.isAutoDelete(), queue.getArgs(false));
                 channel.queueBind(queue.getNameQueue(), queue.getExchange(), X_QUEUE_ROUTER);
 
                 // DLQ
                 if (queue.isDlq()) {
-                    channel.queueDeclare(queue.getNameDlq(), true, queue.isExclusive(), queue.isAuteDelete(), queue.getArgs(queue.isDlq()));
+                    channel.queueDeclare(queue.getNameDlq(), true, queue.isExclusive(), queue.isAutoDelete(), queue.getArgs(queue.isDlq()));
                     channel.queueBind(queue.getNameDlq(), queue.getExchange(), X_DLQ_K);
                 }
 
@@ -87,13 +92,9 @@ public class AmqpTemplate {
     public void send(final String message, final QueueEnumConfig enumConfig) {
         final AMQP.BasicProperties basicProperties = new AMQP.BasicProperties.Builder()
                 .headers(Map.of(
-                        "x-retries", 2,
-                        "x-count", 1,
-                        "x-retry", 2,
-                        "x-retry-limit",2,
-                        "x-delay", 5000L
+                        X_RETRY, enumConfig.getMaxRetry(),
+                        X_COUNT, 1
                 ))
-                //.expiration("4000")
                 .build();
 
         try {

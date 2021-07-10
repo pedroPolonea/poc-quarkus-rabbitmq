@@ -1,19 +1,23 @@
 package org.acme.amqp.consumer;
 
 import com.rabbitmq.client.Channel;
-import io.vertx.core.logging.Logger;
-import io.vertx.core.logging.LoggerFactory;
 import org.acme.amqp.config.ConsumerTemplate;
 import org.acme.amqp.config.QueueEnumConfig;
+import org.acme.amqp.config.ChannelInfo;
 
+import javax.enterprise.context.ApplicationScoped;
 import java.nio.charset.StandardCharsets;
 
-public class ThorConsumer extends ConsumerTemplate {
-    private static final Logger log = LoggerFactory.getLogger(ThorConsumer.class);
+@ApplicationScoped
+public class ThorConsumer extends ChannelInfo implements ConsumerTemplate {
+    @Override
+    public QueueEnumConfig getQueue() {
+        return QueueEnumConfig.THOR;
+    }
 
-    public ThorConsumer(Channel channel) {
-        super(channel);
-        setQueueEnumConfig(QueueEnumConfig.THOR);
+    @Override
+    public Channel getChannel() {
+        return getChannel();
     }
 
     @Override

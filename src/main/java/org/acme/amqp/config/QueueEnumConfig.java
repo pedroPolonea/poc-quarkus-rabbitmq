@@ -45,7 +45,7 @@ public enum QueueEnumConfig {
         return exclusive;
     }
 
-    public boolean isAuteDelete() {
+    public boolean isAutoDelete() {
         return autoDelete;
     }
 
